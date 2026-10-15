@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <unistd.h>
 
 int main(int argc, char **argv)
 {
@@ -174,6 +175,72 @@ int main(int argc, char **argv)
             printf("Commit edilecek dosya yok.\n");
             return 1;
         }
+FILE *index_file = fopen(".mgit/index", "r");
+
+if (index_file == NULL)
+{
+    printf("Index dosyasi acilamadi.\n");
+    return 1;
+}
+
+char filepath[1024];
+
+if (fgets(filepath, sizeof(filepath), index_file) == NULL)
+{
+    fclose(index_file);
+    printf("Staging alani bos.\n");
+    return 1;
+}
+
+filepath[strcspn(filepath, "\n")] = '\0';
+fclose(index_file);
+
+FILE *source = fopen(filepath, "r");
+
+if (source == NULL)
+{
+    printf("Kaynak dosya acilamadi.\n");
+    return 1;
+}
+
+char object_path[100];
+int object_number = 1;
+
+do
+{
+    snprintf(object_path, sizeof(object_path),
+        ".mgit/objects/object-%d", object_number);
+    object_number++;
+}
+while (access(object_path, F_OK) == 0);
+
+FILE *target = fopen(object_path, "w");
+
+if (target == NULL)
+{
+    fclose(source);
+    printf("Nesne dosyasi olusturulamadi.\n");
+    return 1;
+}
+
+int ch;
+
+while ((ch = fgetc(source)) != EOF)
+{
+    if (fputc(ch, target) == EOF)
+    {
+        fclose(source);
+        fclose(target);
+        printf("Dosya icerigi yazilamadi.\n");
+        return 1;
+    }
+}
+
+fclose(source);
+fclose(target);
+
+printf("Dosya icerigi nesneye kaydedildi.\n");
+
 
         FILE *log = fopen(".mgit/commits", "a");
 
@@ -208,7 +275,7 @@ int main(int argc, char **argv)
             printf("%s\n", line);
         }
 
-        fclose(log);
+        fclose(log); 
     }
     else
         printf("Bilinmeyen komut: %s\n", argv[1]);
