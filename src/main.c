@@ -83,15 +83,50 @@ int main(int argc, char **argv)
         else
             printf("Bu klasor bir mini-git deposu degil.\n");
     }
+
     else if (strcmp(argv[1], "add") == 0)
     {
+        struct stat info;
+
         if (argc < 3)
         {
             printf("Eklenecek dosyanin adini girin.\n");
             return 1;
         }
 
-        FILE *file = fopen(".mgit/index", "a");
+        if (stat(".mgit", &info) != 0 || !S_ISDIR(info.st_mode))
+        {
+            printf("Bu klasor bir mini-git deposu degil.\n");
+            return 1;
+        }
+
+        if (stat(argv[2], &info) != 0 || !S_ISREG(info.st_mode))
+        {
+            printf("Dosya bulunamadi veya normal bir dosya degil.\n");
+            return 1;
+        }
+
+        FILE *file = fopen(".mgit/index", "r");
+        char line[1024];
+
+        if (file != NULL)
+        {
+            while (fgets(line, sizeof(line), file) != NULL)
+            {
+                line[strcspn(line, "\n")] = '\0';
+
+                if (strcmp(line, argv[2]) == 0)
+                {
+                    fclose(file);
+                    printf("Dosya zaten staging alaninda.\n");
+                    return 0;
+                }
+            }
+
+            fclose(file);
+        }
+
+        file = fopen(".mgit/index", "a");
 
         if (file == NULL)
         {
@@ -99,18 +134,81 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        fprintf(file, "%s\n", argv[2]);
-        fclose(file);
+        if (fprintf(file, "%s\n", argv[2]) < 0)
+        {
+            printf("Dosya index'e yazilamadi.\n");
+            fclose(file);
+            return 1;
+        }
 
+        fclose(file);
         printf("%s staging alanina eklendi.\n", argv[2]);
     }
+
     else if (strcmp(argv[1], "commit") == 0)
     {
-        printf("Commit ozelligini mevcut kodumuzla koruyalim.\n");
+        if (argc < 4 || strcmp(argv[2], "-m") != 0)
+        {
+            printf("Kullanim: ./mgit commit -m \"mesaj\"\n");
+            return 1;
+        }
+
+        FILE *index = fopen(".mgit/index", "r");
+
+        if (index == NULL)
+        {
+            printf("Staging alani bos.\n");
+            return 1;
+        }
+
+        char line[1024];
+        int has_files = 0;
+
+        while (fgets(line, sizeof(line), index) != NULL)
+            has_files = 1;
+
+        fclose(index);
+
+        if (!has_files)
+        {
+            printf("Commit edilecek dosya yok.\n");
+            return 1;
+        }
+
+        FILE *log = fopen(".mgit/commits", "a");
+
+        if (log == NULL)
+        {
+            printf("Commit kaydi olusturulamadi.\n");
+            return 1;
+        }
+
+        fprintf(log, "%s\n", argv[3]);
+        fclose(log);
+
+        printf("Commit olusturuldu: %s\n", argv[3]);
     }
+
+
     else if (strcmp(argv[1], "log") == 0)
     {
-        printf("Log ozelligini mevcut kodumuzla koruyalim.\n");
+        FILE *log = fopen(".mgit/commits", "r");
+
+        if (log == NULL)
+        {
+            printf("Commit kaydi bulunamadi.\n");
+            return 1;
+        }
+
+        char line[1024];
+
+        while (fgets(line, sizeof(line), log) != NULL)
+        {
+            line[strcspn(line, "\n")] = '\0';
+            printf("%s\n", line);
+        }
+
+        fclose(log);
     }
     else
         printf("Bilinmeyen komut: %s\n", argv[1]);
