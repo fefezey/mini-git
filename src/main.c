@@ -250,7 +250,8 @@ int main(int argc, char **argv)
                 if (strcmp(line, argv[2]) == 0)
                 {
                     fclose(index);
-                    printf("Dosya zaten staging alaninda.\n");
+                    printf("%s zaten staging alaninda.\n", argv[2]);
+                    printf("Icerik degisikligi takibi henuz eklenmedi.\n");
                     return 0;
                 }
             }
