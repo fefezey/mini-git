@@ -118,6 +118,31 @@ static int copy_file(const char *source_path,
     return 0;
 }
 
+/* HASH */
+static unsigned long long hash_file(const char *path, int *ok)
+{
+    FILE *file = fopen(path, "rb");
+
+    if (file == NULL)
+    {
+       *ok = 0;
+       return 0;
+    }
+
+    unsigned long long hash = 14695981039346656037ULL;
+    int ch;
+
+    while ((ch = fgetc(file)) != EOF)
+    {
+        hash ^= (unsigned char)ch;
+        hash *= 1099511628211ULL;
+    }
+
+    fclose(file);
+    *ok = 1;
+    return hash;
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2)
@@ -471,6 +496,27 @@ int main(int argc, char **argv)
         }
 
         fclose(log);
+    }
+
+       /* HASH */
+    else if (strcmp(argv[1], "hash") == 0)
+    {
+        if (argc < 3)
+        {
+            printf("Kullanim: ./mgit hash <dosya>\n");
+            return 1;
+        }
+
+        int ok;
+        unsigned long long hash = hash_file(argv[2], &ok);
+
+        if (!ok)
+        {
+            printf("Dosya okunamadi: %s\n", argv[2]);
+            return 1;
+        }
+
+        printf("%016llx  %s\n", hash, argv[2]);
     }
 
     else
